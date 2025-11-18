@@ -23,7 +23,7 @@ int main() {
         delete con;
     }
     catch (sql::SQLException &e) {
-        cout << "Error: " << e.what() << endl;
+        cout << "Error : " << e.what() << endl;
     }
 
     return 0;
