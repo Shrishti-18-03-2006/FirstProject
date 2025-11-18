@@ -4,4 +4,4 @@ Next step in the project is to make it more UI based and take user input. Basic 
 The User data would again be stored in another table in the DB. 
 Right now the Basic aim is to learn about SQL connectivity to the c++ code, which include creating, updating, inserting, reading and deleting data from the table in DB as per the requirements. 
 Currently, done with the Product details and Supplier details. 
-I have alos attached the basic snippet of establishing the connection between the mysql DB and my c++ code for my reference. 
+I have also attached the basic snippet of establishing the connection between the mysql DB and my c++ code for my reference. 
