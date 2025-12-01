@@ -4,8 +4,18 @@
 #include <string>
 #include <cppconn/connection.h>
 
-// Returns true if login saved successfully.
-// Also gives back the email used for login in loggedInEmail.
-bool loginWindow(sql::Connection* con, std::string& loggedInEmail);
+// Interactive login window: prompts user for email+password and authenticates.
+// On success it sets `email` to the logged-in email and returns true.
+bool loginWindow(sql::Connection* con, std::string &email);
 
-#endif
+// Interactive registration helper: prompts user for email+password and inserts a new login.
+// Returns true on success.
+bool registerUser(sql::Connection* con);
+
+// Low-level insert: create a login record for given email+password (non-interactive).
+bool registerNewLogin(sql::Connection* con, const std::string& email, const std::string& pass);
+
+// Authenticate a given email+password against the Login table (returns true if match).
+bool authenticateLogin(sql::Connection* con, const std::string& email, const std::string& pass);
+
+#endif // LOGIN_H

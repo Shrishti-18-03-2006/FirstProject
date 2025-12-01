@@ -1,4 +1,4 @@
-// Functions/DBFunctions.cpp
+// DBFunctions.cpp
 // Clean DB functions: connection, display (read-only) and dynamic loaders
 
 #include "DBFunctions.h"
@@ -8,7 +8,7 @@
 
 
 // -----------------------------
-// 1) CONNECT TO DATABASE
+// 1) ESTABLISHING THE DATABASE CONNECTION
 // -----------------------------
 sql::Connection* createConnection() {
     sql::mysql::MySQL_Driver *driver;
@@ -17,8 +17,8 @@ sql::Connection* createConnection() {
     try {
         driver = sql::mysql::get_mysql_driver_instance();
         // update username/password as necessary
-        con = driver->connect("tcp://127.0.0.1:3306", "root", "***");
-        con->setSchema("PROJECT1");
+        con = driver->connect("tcp://127.0.0.1:3306", "root", "shrishti@2006"); //give the mysql password 
+        con->setSchema("PROJECT1"); //make sure all the required tables are in this database
     } catch (sql::SQLException &e) {
         cout << "Unable to connect to DB: " << e.what() << endl;
         throw;
@@ -27,16 +27,16 @@ sql::Connection* createConnection() {
     return con;
 }
 
-// -----------------------------
-// 2) DISPLAY BY CATEGORY
-// -----------------------------
+// ---------------------------------------
+// 2) DISPLAY BY CATEGORY OF THE PRODUCTS
+// ---------------------------------------
 void displayByCategory(sql::Connection* con, string cat) {
     sql::PreparedStatement* pstmt = nullptr;
     sql::ResultSet* res = nullptr;
 
     try {
         pstmt = con->prepareStatement(
-            "SELECT * FROM PRODUCT WHERE Category = ?"
+            "SELECT * FROM PRODUCT WHERE Category = ?" 
         );
         pstmt->setString(1, cat);
         res = pstmt->executeQuery();
@@ -76,9 +76,9 @@ void displayByCategory(sql::Connection* con, string cat) {
     if (pstmt) delete pstmt;
 }
 
-// -----------------------------
+// ------------------------------------
 // 3) DISPLAY BY CATEGORY + SUBCATEGORY
-// -----------------------------
+// ------------------------------------
 void displayBySubcategory(sql::Connection* con, string cat, string subcat) {
     sql::PreparedStatement* pstmt = nullptr;
     sql::ResultSet* res = nullptr;
@@ -166,14 +166,13 @@ void displayAllProducts(sql::Connection *con) {
     if (stmt) delete stmt;
 }
 
-// -----------------------------
+// -------------------------------------------
 // 5) LOAD DISTINCT CATEGORIES (vector-based)
-// -----------------------------
+// -------------------------------------------
 vector<string> loadCategories(sql::Connection* con) {
     vector<string> categories;
     sql::Statement *stmt = nullptr;
     sql::ResultSet *res = nullptr;
-
     try {
         stmt = con->createStatement();
         res = stmt->executeQuery("SELECT DISTINCT Category FROM PRODUCT ORDER BY Category ASC");
@@ -186,28 +185,24 @@ vector<string> loadCategories(sql::Connection* con) {
     } catch (sql::SQLException &e) {
         cout << "SQL Error in loadCategories: " << e.what() << endl;
     }
-
     if (res) delete res;
     if (stmt) delete stmt;
-
     return categories;
 }
 
-// -----------------------------
+// ---------------------------------------------
 // 6) LOAD DISTINCT SUBCATEGORIES (vector-based)
-// -----------------------------
+// ---------------------------------------------
 vector<string> loadSubcategories(sql::Connection* con, const string &category) {
     vector<string> subcats;
     sql::PreparedStatement *pstmt = nullptr;
     sql::ResultSet *res = nullptr;
-
     try {
         pstmt = con->prepareStatement(
             "SELECT DISTINCT Subcategory FROM PRODUCT WHERE Category = ? ORDER BY Subcategory ASC"
         );
         pstmt->setString(1, category);
         res = pstmt->executeQuery();
-
         while (res->next()) {
             string s = res->getString("Subcategory");
             if (!s.empty())
@@ -216,22 +211,19 @@ vector<string> loadSubcategories(sql::Connection* con, const string &category) {
     } catch (sql::SQLException &e) {
         cout << "SQL Error in loadSubcategories: " << e.what() << endl;
     }
-
     if (res) delete res;
     if (pstmt) delete pstmt;
-
     return subcats;
 }
 
-// --------------------------
+// ---------------------------------------------------
 // 7) Take Customer details & save to CUSTOMER_DETAILS
-// --------------------------
+// ---------------------------------------------------
 void inputCustomerDetails(sql::Connection* con, const std::string& emailFromLogin) {
     if (!con) {
         cout << "❌ No active DB connection.\n";
         return;
     }
-
     Customer c;
     int id;
     std::string name, contact, address;
@@ -239,10 +231,6 @@ void inputCustomerDetails(sql::Connection* con, const std::string& emailFromLogi
     cout << "\n=====================================\n";
     cout << "         SAVE CUSTOMER DETAILS       \n";
     cout << "=====================================\n\n";
-
-    cout << "Enter Customer ID: ";
-    cin >> id;
-    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
     cout << "Enter Full Name: ";
     std::getline(cin, name);
@@ -257,50 +245,34 @@ void inputCustomerDetails(sql::Connection* con, const std::string& emailFromLogi
     cout << "Enter Address: ";
     std::getline(cin, address);
 
-    c.setId(id);
     c.setName(name);
     c.setContactnumber(contact);
     c.setEmail(emailFromLogin);
     c.setAddress(address);
 
-    // Now insert this customer into the DB
+    // Now insert this customer details into the DB
     insertCustomerDetails(con, c);
 }
 
-void insertCustomerDetails(sql::Connection* con, const Customer& c) {
-    if (!con) {
-        cout << "❌ No active DB connection.\n";
-        return;
-    }
-
-    sql::PreparedStatement *pstmt = nullptr;
-
+void insertCustomerDetails(sql::Connection* con, const Customer &c) {
     try {
-        pstmt = con->prepareStatement(
-            "INSERT INTO CUSTOMER_DETAILS (ID, Name, Contact_Num, Email, Address) "
-            "VALUES (?, ?, ?, ?, ?)"
-        );
+            sql::PreparedStatement* pstmt = con->prepareStatement(
+                "INSERT INTO CUSTOMER_DETAILS (Name, Contact_Num, Email, Address) VALUES (?, ?, ?, ?)"
+            );
 
-        pstmt->setInt(1, c.getId());
-        pstmt->setString(2, c.getName());
-        pstmt->setString(3, c.getContactnumber());
-        pstmt->setString(4, c.getEmail());
-        pstmt->setString(5, c.getAddress());
+            pstmt->setString(1, c.getName());
+            pstmt->setString(2, c.getContactnumber());
+            pstmt->setString(3, c.getEmail());
+            pstmt->setString(4, c.getAddress());
+            pstmt->executeUpdate();
 
-        int rows = pstmt->executeUpdate();
-
-        if (rows > 0) {
-            cout << "\n✅ Customer details saved successfully in CUSTOMER_DETAILS.\n";
-        } else {
-            cout << "\n⚠️ No rows inserted. Something went wrong.\n";
-        }
+        delete pstmt;
     }
     catch (sql::SQLException &e) {
-        cout << "SQL Error in insertCustomerDetails: " << e.what() << endl;
+        cerr << "SQL Error in insertCustomerDetails: " << e.what() << endl;
     }
-
-    if (pstmt) delete pstmt;
 }
+
 
 
 // (we will NOT print Product_ID or SID to the user)
@@ -314,7 +286,7 @@ void displayProductDetailsById(int productId) {
 
         // We use Product_ID internally, but we don't print it
         pstmt = con->prepareStatement(
-            "SELECT Product_Name, Category, Subcategory, "
+            "SELECT Product_Name, Category, Subcategory, " 
             "       Price, Stock_Qtn, Company_name, ExpiryDate "
             "FROM PRODUCT "
             "WHERE Product_ID = ?"
@@ -389,5 +361,50 @@ void displaySupplierForProduct(int productId) {
         if (res) delete res;
         if (pstmt) delete pstmt;
         if (con) { con->close(); delete con; }
+    }
+}
+
+//To auto detect the last entered customer id 
+int getLastInsertedCustomerID(sql::Connection* con) {
+    try {
+        sql::PreparedStatement* pstmt = con->prepareStatement("SELECT LAST_INSERT_ID()");
+        sql::ResultSet* res = pstmt->executeQuery();
+
+        int id = -1;
+        if (res->next()) {
+            id = res->getInt(1);  // FIRST column
+        }
+
+        delete res;
+        delete pstmt;
+
+        return id;
+    } catch (sql::SQLException &e) {
+        std::cout << "Error fetching last inserted Customer ID: " << e.what() << std::endl;
+        return -1;
+    }
+}
+
+int getCustomerIdByEmail(sql::Connection* con, const std::string& email) {
+    try {
+        sql::PreparedStatement* pstmt =
+            con->prepareStatement("SELECT ID FROM CUSTOMER_DETAILS WHERE Email = ?");
+        pstmt->setString(1, email);
+
+        sql::ResultSet* res = pstmt->executeQuery();
+
+        int id = -1;
+        if (res->next()) {
+            id = res->getInt("ID");
+        }
+
+        delete res;
+        delete pstmt;
+
+        return id;
+    }
+    catch (sql::SQLException &e) {
+        std::cout << "SQL Error in getCustomerIdByEmail: " << e.what() << std::endl;
+        return -1;
     }
 }

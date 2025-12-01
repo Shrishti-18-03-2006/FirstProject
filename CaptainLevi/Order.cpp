@@ -54,10 +54,3 @@ class Order{
 
 };
 
-int main(){
-    Order O(101,10001,900.99);
-    O.display();
-
-    return 0;
-}
-

@@ -44,5 +44,10 @@ void insertCustomerDetails(sql::Connection* con, const Customer& c);
 void displayProductDetailsById(int productId);
 void displaySupplierForProduct(int productId);
 
+int getLastInsertedCustomerID(sql::Connection* con);
+
+int getLastInsertedCustomerID(sql::Connection* con);
+int getCustomerIdByEmail(sql::Connection* con, const std::string& email);
+int getCustomerIdByEmail(sql::Connection* con, const std::string& email);
 
 #endif // DBFUNCTIONS_H

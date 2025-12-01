@@ -2,9 +2,11 @@
 #include <iostream>
 #include <limits>
 #include <cppconn/prepared_statement.h>
+#include <cppconn/resultset.h>
+#include <cppconn/exception.h>
 #include <cctype>
-using namespace std;
 
+using namespace std;
 
 // Helper: check if password follows standard rules
 static bool isValidPassword(const string& pwd) {
@@ -15,23 +17,119 @@ static bool isValidPassword(const string& pwd) {
     bool hasDigit = false;
     bool hasSpecial = false;
 
-    for (char ch : pwd) {
-        if (isupper(static_cast<unsigned char>(ch))) hasUpper = true;
-        else if (islower(static_cast<unsigned char>(ch))) hasLower = true;
-        else if (isdigit(static_cast<unsigned char>(ch))) hasDigit = true;
+    for (unsigned char ch : pwd) {
+        if (isupper(ch)) hasUpper = true;
+        else if (islower(ch)) hasLower = true;
+        else if (isdigit(ch)) hasDigit = true;
         else hasSpecial = true; // anything not letter/digit
     }
 
     return hasUpper && hasLower && hasDigit && hasSpecial;
 }
 
+// -----------------------------------------------------------------
+// Low-level register for NEW USER (non-interactive)
+// -----------------------------------------------------------------
+bool registerNewLogin(sql::Connection* con, const string& email, const string& pass) {
+    if (!con) {
+        cerr << "No DB connection in registerNewLogin.\n";
+        return false;
+    }
+
+    try {
+        sql::PreparedStatement* pstmt =
+            con->prepareStatement("INSERT INTO `LOGIN` (Email, Password) VALUES (?, ?)");
+
+        pstmt->setString(1, email);
+        pstmt->setString(2, pass);
+        pstmt->executeUpdate();
+        delete pstmt;
+
+        return true;
+    }
+    catch (sql::SQLException &e) {
+        cerr << "SQL Error in registerNewLogin: " << e.what() << endl;
+        return false;
+    }
+}
+
+// -----------------------------------------------------------------
+// Interactive registration (not used in your flow now)
+// -----------------------------------------------------------------
+bool registerUser(sql::Connection* con) {
+    if (!con) {
+        cout << "❌ No active DB connection.\n";
+        return false;
+    }
+
+    string email, pass;
+
+    cout << "\n=== REGISTER NEW USER ===\n";
+    cout << "Enter Email: ";
+    cin >> email;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+    while (true) {
+        cout << "Create Password: ";
+        getline(cin, pass);
+
+        if (isValidPassword(pass)) break;
+
+        cout << "\n❌ Password does not meet rules.\n";
+        cout << "   Must contain uppercase, lowercase, digit, special, 8+ chars.\n\n";
+    }
+
+    if (!registerNewLogin(con, email, pass)) {
+        cout << "❌ Registration failed.\n";
+        return false;
+    }
+
+    cout << "✔ Registration successful.\n";
+    return true;
+}
+
+// -----------------------------------------------------------------
+// Authenticate an email+password pair from LOGIN table
+// -----------------------------------------------------------------
+bool authenticateLogin(sql::Connection* con, const string& email, const string& pass) {
+    if (!con) return false;
+
+    try {
+        sql::PreparedStatement* pstmt =
+            con->prepareStatement("SELECT Password FROM `LOGIN` WHERE Email = ?");
+        pstmt->setString(1, email);
+
+        sql::ResultSet* res = pstmt->executeQuery();
+
+        bool ok = false;
+
+        if (res->next()) {
+            string stored = res->getString("Password");
+            if (stored == pass) ok = true;  // plain-text compare
+        }
+
+        delete res;
+        delete pstmt;
+
+        return ok;
+    }
+    catch (sql::SQLException &e) {
+        cerr << "SQL Error in authenticateLogin: " << e.what() << endl;
+        return false;
+    }
+}
+
+// -----------------------------------------------------------------
+// Interactive LOGIN window for existing users
+// -----------------------------------------------------------------
 bool loginWindow(sql::Connection* con, std::string& loggedInEmail) {
     if (!con) {
         cout << "❌ No active DB connection.\n";
         return false;
     }
 
-    string email, password;
+    string email;
+    string password;
 
     cout << "=====================================\n";
     cout << "            LOGIN WINDOW             \n";
@@ -40,45 +138,16 @@ bool loginWindow(sql::Connection* con, std::string& loggedInEmail) {
     cout << "Enter Email: ";
     getline(cin, email);
 
-    // Ask for password until it is valid
-    while (true) {
-        cout << "Enter Password: ";
-        getline(cin, password);
+    if (email.empty()) getline(cin, email);  // fix leftover newline issue
 
-        if (isValidPassword(password)) {
-            break;
-        }
+    cout << "Enter Password: ";
+    getline(cin, password);
 
-        cout << "\n❌ Password does not meet rules.\n";
-        cout << "   It must be at least 8 characters,\n";
-        cout << "   contain uppercase, lowercase, digit, and special character.\n\n";
-    }
-
-    try {
-        sql::PreparedStatement* pstmt = nullptr;
-
-        pstmt = con->prepareStatement(
-            "INSERT INTO LOGIN (Email, Password) VALUES (?, ?)"
-        );
-        pstmt->setString(1, email);
-        pstmt->setString(2, password);
-
-        int rows = pstmt->executeUpdate();
-        delete pstmt;
-
-        if (rows <= 0) {
-            cout << "❌ Failed to save login details.\n";
-            return false;
-        }
-
-        cout << "\n✅ Login details saved successfully.\n";
-
-        // Give email back to caller for Customer details later
-        loggedInEmail = email;
-        return true;
-    }
-    catch (sql::SQLException &e) {
-        cout << "SQL Error while saving login: " << e.what() << endl;
+    if (!authenticateLogin(con, email, password)) {
+        cout << "\n❌ Incorrect email or password.\n";
         return false;
     }
+
+    loggedInEmail = email;
+    return true;
 }

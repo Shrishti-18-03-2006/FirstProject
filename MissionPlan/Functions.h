@@ -1,22 +1,26 @@
-#ifndef FUNCTION_H
+// Functions.h
+#ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
-#include <bits/stdc++.h>
-#include <mysql_driver.h>
-#include <mysql_connection.h>
-#include <cppconn/statement.h>
-#include <cppconn/resultset.h>
-#include <cppconn/prepared_statement.h>
+#include <string>
+#include <cppconn/connection.h>  // for sql::Connection*
 
-#include "Supplier.h"
+// Basic UI helpers
+void clearScreen();
+void pressEnterToContinue();
+int getIntInput(const std::string &prompt);
+void printFancyHeader(const std::string &title);
+std::string color(const std::string &code, const std::string &text);
 
-using namespace std;
-using namespace sql;
-
-// Function declarations
-sql::Connection* createConnection();
-Supplier inputSupplier();
-void insertSupplier(sql::Connection* con, Supplier S);
-void displayAllSupplier(sql::Connection* con);
+// Updated prototypes with customerId parameter
+void productDetailsScreen(int productId, int customerId, sql::Connection* con);
+void handleProductsFlow(sql::Connection *con,
+                        const std::string &category,
+                        const std::string &subcategory,
+                        int customerId);
+void handleSubcategoryFlow(sql::Connection *con,
+                           const std::string &category,
+                           int customerId);
+void runCategoryMenu(sql::Connection *con, int customerId);
 
 #endif
